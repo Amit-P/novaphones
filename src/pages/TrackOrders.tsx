@@ -125,6 +125,9 @@ const TrackOrders = () => {
   const formatPrice = (price: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(price);
 
   const computeOrderPrice = (order: Order) => {
+    // Prefer the price captured at order time — it's authoritative and works for
+    // older orders whose products are no longer in the static catalog.
+    if (order.price) return order.price;
     try {
       const baseName = order.product_name.split(' - ')[0];
       const product = products.find(p => p.name === baseName);
