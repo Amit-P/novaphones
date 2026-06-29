@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Env (keep .env out of git; commit .env.example instead if needed)
+.env
+.env.*
+!.env.example
+
+# PocketBase (binary, local data, runtime logs)
+pocketbase
+pocketbase.exe
+pb_data/
+# Auto-generated schema migrations (we use scripts/setup-pocketbase.mjs as the
+# reproducible schema source; these same-second-timestamped files don't replay
+# cleanly). To reset locally: delete BOTH pb_data AND pb_migrations, then re-run
+# the superuser + setup-pocketbase.mjs steps.
+pb_migrations/
+
+# Migration data exported from Supabase (may contain PII) + generated credentials
+migration-data/
+migrated-users.csv
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
