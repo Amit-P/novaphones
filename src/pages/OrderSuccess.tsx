@@ -1,9 +1,15 @@
 import { CheckCircle, Truck, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const OrderSuccess = () => {
+  const location = useLocation();
+  const paymentMethod = (location.state as { paymentMethod?: string } | null)?.paymentMethod;
+  // Show the Cash-on-Delivery step only for COD orders. Default to COD when the
+  // payment method is unknown (e.g. the page was refreshed and state was lost).
+  const isCOD = paymentMethod ? paymentMethod === 'cod' : true;
+
   return (
     <div className="container py-8">
       <div className="max-w-2xl mx-auto text-center">
@@ -13,7 +19,7 @@ const OrderSuccess = () => {
           </div>
           <h1 className="text-3xl font-bold text-green-600 mb-4">Order Placed Successfully!</h1>
           <p className="text-lg text-muted-foreground">
-            Thank you for choosing NovaMobiles. Your order has been confirmed and will be delivered soon.
+            Thank you for choosing NovaPhones. Your order has been confirmed and will be delivered soon.
           </p>
         </div>
 
@@ -58,17 +64,19 @@ const OrderSuccess = () => {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 text-white text-sm font-bold">
-                  4
+              {isCOD && (
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 text-white text-sm font-bold">
+                    4
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-medium mb-1">Cash on Delivery</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Pay the delivery person when you receive your order. Inspect before payment!
+                    </p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h3 className="font-medium mb-1">Cash on Delivery</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Pay the delivery person when you receive your order. Inspect before payment!
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { products } from '@/data/products';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, getMaxQuantity } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useToast } from '@/hooks/use-toast';
 import type { RecordModel } from 'pocketbase';
@@ -59,7 +59,7 @@ import novaS8Red from '@/assets/nova-s8-red.jpg';
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { dispatch } = useCart();
+  const { state: cartState, dispatch } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -169,6 +169,18 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
+    const max = getMaxQuantity(product);
+    const existing = cartState.items.find(
+      (i) => i.product.id === product.id && i.selectedColor === selectedColor && i.selectedStorage === selectedStorage
+    );
+    if (existing && existing.quantity >= max) {
+      toast({
+        title: "Purchase limit reached",
+        description: `You can buy up to ${max} of this item per order.`,
+        variant: "destructive",
+      });
+      return;
+    }
     dispatch({
       type: 'ADD_ITEM',
       payload: {

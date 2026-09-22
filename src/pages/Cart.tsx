@@ -1,7 +1,7 @@
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useCart, type CartItem } from '@/contexts/CartContext';
+import { useCart, getMaxQuantity, type CartItem } from '@/contexts/CartContext';
 import { Link } from 'react-router-dom';
 
 const Cart = () => {
@@ -80,22 +80,30 @@ const Cart = () => {
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateQuantity(getItemId(item), item.quantity - 1)}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="font-medium px-3">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateQuantity(getItemId(item), item.quantity + 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(getItemId(item), item.quantity - 1)}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="font-medium px-3">{item.quantity}</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={item.quantity >= getMaxQuantity(item.product)}
+                            onClick={() => updateQuantity(getItemId(item), item.quantity + 1)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {item.quantity >= getMaxQuantity(item.product) && (
+                          <p className="text-xs font-medium text-destructive">
+                            Max {getMaxQuantity(item.product)} per order
+                          </p>
+                        )}
                       </div>
                       
                       <div className="flex items-center gap-4">

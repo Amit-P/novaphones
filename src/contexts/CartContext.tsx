@@ -13,6 +13,12 @@ interface CartState {
   total: number;
 }
 
+// Per-order purchase limits. Accessories have no storage options; phones do.
+export const MAX_PHONE_QUANTITY = 3;
+export const MAX_ACCESSORY_QUANTITY = 5;
+export const getMaxQuantity = (product: Product) =>
+  product.storage && product.storage.length > 0 ? MAX_PHONE_QUANTITY : MAX_ACCESSORY_QUANTITY;
+
 type CartAction =
   | { type: 'ADD_ITEM'; payload: { product: Product; color: string; storage: string } }
   | { type: 'REMOVE_ITEM'; payload: string }
@@ -38,7 +44,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
       if (existingItemIndex >= 0) {
         newItems = state.items.map((item, index) =>
           index === existingItemIndex
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: Math.min(item.quantity + 1, getMaxQuantity(item.product)) }
             : item
         );
       } else {
@@ -65,7 +71,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
     case 'UPDATE_QUANTITY': {
       const newItems = state.items.map(item =>
         `${item.product.id}-${item.selectedColor}-${item.selectedStorage}` === action.payload.id
-          ? { ...item, quantity: action.payload.quantity }
+          ? { ...item, quantity: Math.max(1, Math.min(action.payload.quantity, getMaxQuantity(item.product))) }
           : item
       );
       const total = newItems.reduce((sum, item) => sum + (((item.product.priceByStorage?.[item.selectedStorage] ?? item.product.price)) * item.quantity), 0);

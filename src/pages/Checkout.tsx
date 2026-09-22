@@ -182,7 +182,7 @@ const Checkout = () => {
         title: "Order placed successfully!",
         description: `Your order ${baseOrderNumber} has been confirmed. You can track it in the Track Orders section.`,
       });
-      navigate('/order-success');
+      navigate('/order-success', { state: { paymentMethod: formData.paymentMethod } });
     } catch (error) {
       console.error('Error placing order:', error);
       toast({
