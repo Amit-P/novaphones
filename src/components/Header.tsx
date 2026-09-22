@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Heart, User, Package, LogOut, Search } from 'lucide-react';
+import { ShoppingCart, Heart, User, Package, LogOut, Search, X } from 'lucide-react';
 import logo from '@/assets/logo-icon.png';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
@@ -42,8 +42,8 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-          <img src={logo} alt="NovaMobiles" className="h-10 w-10 object-contain" width={512} height={512} />
-          <span className="font-bold text-xl">NovaMobiles</span>
+          <img src={logo} alt="NovaPhones" className="h-10 w-10 object-contain" width={512} height={512} />
+          <span className="font-bold text-xl">NovaPhones</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
@@ -78,12 +78,22 @@ const Header = () => {
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              type="search"
+              type="text"
               placeholder="Search phones..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full"
+              className="pl-10 pr-9 w-full"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </form>
 
