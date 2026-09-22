@@ -181,7 +181,7 @@ const Home = () => {
       <footer className="py-8 bg-muted">
         <div className="container text-center">
           <p className="text-muted-foreground">
-            © {new Date().getFullYear()} NovaMobiles. All rights reserved. Developed by Amit Patil.
+            © {new Date().getFullYear()} NovaPhones. All rights reserved. Developed by Amit Patil.
           </p>
         </div>
       </footer>
