@@ -11,15 +11,23 @@ export interface Product {
   inStock: boolean;
 }
 
+// What's actually stored per wishlist entry — a Product plus the moment it
+// was added, used by the notification feature's "still in your wishlist
+// after 24h" reminder. Callers of addToWishlist() pass a plain Product; the
+// reducer stamps addedAt itself so call sites don't need to know about it.
+export interface WishlistItem extends Product {
+  addedAt: number;
+}
+
 interface WishlistState {
-  items: Product[];
+  items: WishlistItem[];
 }
 
 type WishlistAction =
   | { type: 'ADD_TO_WISHLIST'; payload: Product }
   | { type: 'REMOVE_FROM_WISHLIST'; payload: string }
   | { type: 'CLEAR_WISHLIST' }
-  | { type: 'LOAD_WISHLIST'; payload: Product[] };
+  | { type: 'LOAD_WISHLIST'; payload: WishlistItem[] };
 
 const wishlistReducer = (state: WishlistState, action: WishlistAction): WishlistState => {
   switch (action.type) {
@@ -29,7 +37,7 @@ const wishlistReducer = (state: WishlistState, action: WishlistAction): Wishlist
       }
       return {
         ...state,
-        items: [...state.items, action.payload]
+        items: [...state.items, { ...action.payload, addedAt: Date.now() }]
       };
     
     case 'REMOVE_FROM_WISHLIST':
@@ -65,23 +73,35 @@ interface WishlistContextType {
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
-export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(wishlistReducer, { items: [] });
-
-  // Load wishlist from localStorage on mount
-  useEffect(() => {
-    const savedWishlist = localStorage.getItem('wishlist');
-    if (savedWishlist) {
-      try {
-        const parsedWishlist = JSON.parse(savedWishlist);
-        dispatch({ type: 'LOAD_WISHLIST', payload: parsedWishlist });
-      } catch (error) {
-        console.error('Error loading wishlist from localStorage:', error);
+// Reads any previously-saved wishlist synchronously, as the reducer's actual
+// initial state (React's "lazy initialization" pattern) — NOT in a useEffect.
+// Loading in an effect raced against the "save on change" effect below: both
+// fire on mount, and if save ran first (with the empty default state) it
+// would immediately overwrite localStorage back to `[]`, wiping out whatever
+// had been saved from a previous visit. Loading synchronously up front means
+// there's no empty state for that effect to ever write.
+const loadInitialWishlist = (): WishlistState => {
+  try {
+    const saved = localStorage.getItem('wishlist');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        // Backfill addedAt for items saved before that field existed, treating
+        // them as "just added" rather than instantly flagging every pre-existing
+        // item as a 24h-old reminder the moment this ships.
+        return { items: parsed.map((item) => ({ addedAt: Date.now(), ...item })) };
       }
     }
-  }, []);
+  } catch (error) {
+    console.error('Error loading wishlist from localStorage:', error);
+  }
+  return { items: [] };
+};
 
-  // Save wishlist to localStorage whenever it changes
+export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [state, dispatch] = useReducer(wishlistReducer, undefined, loadInitialWishlist);
+
+  // Save wishlist to localStorage whenever it changes.
   useEffect(() => {
     localStorage.setItem('wishlist', JSON.stringify(state.items));
   }, [state.items]);
