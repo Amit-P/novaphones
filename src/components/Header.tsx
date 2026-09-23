@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationBell } from '@/components/NotificationBell';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,6 +136,7 @@ const Header = () => {
               </Link>
             </Button>
           )}
+          <NotificationBell />
         </div>
       </div>
     </header>

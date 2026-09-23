@@ -10,9 +10,14 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Shield, Bell, Globe, Lock, Download, Trash2, Monitor, Smartphone, Chrome, Settings, Eye, EyeOff, FileSpreadsheet } from 'lucide-react';
+import { Shield, Bell, Globe, Lock, Download, Trash2, Monitor, Smartphone, Chrome, Settings, Eye, EyeOff, FileSpreadsheet, BellRing } from 'lucide-react';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
+import {
+  useNotifications,
+  NOTIFICATION_TYPE_META,
+  type NotificationType,
+} from '@/contexts/NotificationContext';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(6, 'Password must be at least 6 characters'),
@@ -26,6 +31,11 @@ const passwordSchema = z.object({
 const AccountSettings = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const {
+    preferences: alertPreferences,
+    setEnabled: setAlertsEnabled,
+    setTypeEnabled: setAlertTypeEnabled,
+  } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -538,6 +548,53 @@ const AccountSettings = () => {
               />
             </div>
             <Button onClick={savePreferences}>Save Preferences</Button>
+          </CardContent>
+        </Card>
+
+        {/* Alert Notifications (the in-app bell — separate from the email
+            preferences above) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BellRing className="h-5 w-5" />
+              Alert Notifications
+            </CardTitle>
+            <CardDescription>
+              Control the in-app notifications you get about your wishlist and cart
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable notifications</Label>
+                <p className="text-sm text-muted-foreground">Turn all alert notifications on or off</p>
+              </div>
+              <Switch
+                checked={alertPreferences.enabled}
+                onCheckedChange={setAlertsEnabled}
+              />
+            </div>
+            <Separator />
+            <div className={`space-y-4 ${alertPreferences.enabled ? '' : 'opacity-50'}`}>
+              {(Object.keys(NOTIFICATION_TYPE_META) as NotificationType[]).map((type, index) => (
+                <div key={type}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>{NOTIFICATION_TYPE_META[type].label}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {NOTIFICATION_TYPE_META[type].description}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={alertPreferences.types[type]}
+                      disabled={!alertPreferences.enabled}
+                      onCheckedChange={(checked) => setAlertTypeEnabled(type, checked)}
+                    />
+                  </div>
+                  {index < Object.keys(NOTIFICATION_TYPE_META).length - 1 && <Separator className="mt-4" />}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 

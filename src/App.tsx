@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
@@ -31,55 +32,57 @@ const App = () => (
         <AuthProvider>
           <CartProvider>
             <WishlistProvider>
-              <Toaster />
-              <Sonner />
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1">
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/mobiles" element={<Products />} />
-                    <Route path="/products" element={<Navigate to="/mobiles" replace />} />
-                    <Route path="/accessories" element={<Accessories />} />
-                    <Route path="/product/:id" element={<ProductDetail />} />
-                    <Route path="/login" element={<Auth />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/checkout" element={
-                      <ProtectedRoute>
-                        <Checkout />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/order-success" element={
-                      <ProtectedRoute>
-                        <OrderSuccess />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/track-orders" element={
-                      <ProtectedRoute>
-                        <TrackOrders />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/profile" element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/wishlist" element={
-                      <ProtectedRoute>
-                        <Wishlist />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/account-settings" element={
-                      <ProtectedRoute>
-                        <AccountSettings />
-                      </ProtectedRoute>
-                    } />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </main>
-              </div>
+              <NotificationProvider>
+                <Toaster />
+                <Sonner />
+                <div className="min-h-screen flex flex-col">
+                  <Header />
+                  <main className="flex-1">
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/mobiles" element={<Products />} />
+                      <Route path="/products" element={<Navigate to="/mobiles" replace />} />
+                      <Route path="/accessories" element={<Accessories />} />
+                      <Route path="/product/:id" element={<ProductDetail />} />
+                      <Route path="/login" element={<Auth />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/cart" element={<Cart />} />
+                      <Route path="/checkout" element={
+                        <ProtectedRoute>
+                          <Checkout />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/order-success" element={
+                        <ProtectedRoute>
+                          <OrderSuccess />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/track-orders" element={
+                        <ProtectedRoute>
+                          <TrackOrders />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/profile" element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/wishlist" element={
+                        <ProtectedRoute>
+                          <Wishlist />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/account-settings" element={
+                        <ProtectedRoute>
+                          <AccountSettings />
+                        </ProtectedRoute>
+                      } />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </main>
+                </div>
+              </NotificationProvider>
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>

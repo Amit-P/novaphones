@@ -6,6 +6,10 @@ export interface CartItem {
   quantity: number;
   selectedColor: string;
   selectedStorage: string;
+  // When this line was first added — used by the notification feature's
+  // "still in your cart after 24h" reminder. Stamped once on first add, not
+  // reset by later quantity changes.
+  addedAt: number;
 }
 
 interface CartState {
@@ -48,11 +52,12 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
             : item
         );
       } else {
-        newItems = [...state.items, { 
-          product, 
-          quantity: 1, 
-          selectedColor: color, 
-          selectedStorage: storage 
+        newItems = [...state.items, {
+          product,
+          quantity: 1,
+          selectedColor: color,
+          selectedStorage: storage,
+          addedAt: Date.now(),
         }];
       }
 
