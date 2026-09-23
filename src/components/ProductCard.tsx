@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Product } from '@/data/products';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, getMaxQuantity } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { useProductRating } from '@/hooks/useProductRatings';
+import { useProductStock } from '@/hooks/useProductStock';
+import { StockBadge } from '@/components/StockBadge';
 import { Link } from 'react-router-dom';
 
 interface ProductCardProps {
@@ -13,9 +15,10 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
-  const { dispatch } = useCart();
+  const { state: cartState, dispatch } = useCart();
   const { toast } = useToast();
   const { rating } = useProductRating(product.id);
+  const { stock, loading: stockLoading } = useProductStock(product.id);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -25,6 +28,29 @@ const ProductCard = ({ product }: ProductCardProps) => {
   };
 
   const handleAddToCart = () => {
+    if (stock !== null && stock <= 0) {
+      toast({
+        title: "Out of stock",
+        description: `${product.name} is currently out of stock.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const flatMax = getMaxQuantity(product);
+    const effectiveMax = stock !== null ? Math.min(flatMax, stock) : flatMax;
+    const existing = cartState.items.find(
+      (i) => i.product.id === product.id && i.selectedColor === product.colors[0] && i.selectedStorage === product.storage[0]
+    );
+    if (existing && existing.quantity >= effectiveMax) {
+      toast({
+        title: "Purchase limit reached",
+        description: `Only ${effectiveMax} of this item can be purchased right now.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     dispatch({
       type: 'ADD_ITEM',
       payload: {
@@ -58,11 +84,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
                 {discount}% OFF
               </Badge>
             )}
-            {product.inStock && (
-              <Badge variant="secondary" className="absolute top-2 right-2 bg-success text-success-foreground">
-                In Stock
-              </Badge>
-            )}
+            <StockBadge stock={stock} loading={stockLoading} className="absolute top-2 right-2" />
           </div>
           
           <div className="space-y-2">
@@ -121,12 +143,12 @@ const ProductCard = ({ product }: ProductCardProps) => {
           </div>
         </div>
         
-        <Button 
+        <Button
           onClick={handleAddToCart}
           className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
-          disabled={!product.inStock}
+          disabled={stockLoading || (stock !== null && stock <= 0)}
         >
-          {product.inStock ? 'Add to Cart' : 'Out of Stock'}
+          {stock !== null && stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
         </Button>
       </CardFooter>
     </Card>

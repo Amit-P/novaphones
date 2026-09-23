@@ -15,6 +15,8 @@ import type { RecordModel } from 'pocketbase';
 import { useAuth } from '@/contexts/AuthContext';
 import { pb } from '@/integrations/pocketbase/client';
 import { useProductRating } from '@/hooks/useProductRatings';
+import { useProductStock } from '@/hooks/useProductStock';
+import { StockBadge } from '@/components/StockBadge';
 import { ReviewForm } from '@/components/ReviewForm';
 import { ReviewsList } from '@/components/ReviewsList';
 
@@ -64,7 +66,8 @@ const ProductDetail = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { rating } = useProductRating(id || '');
-  
+  const { stock, loading: stockLoading } = useProductStock(id || '');
+
   const product = products.find(p => p.id === id);
   const [selectedColor, setSelectedColor] = useState(product?.colors[0] || '');
   const [selectedStorage, setSelectedStorage] = useState(product?.storage[0] || '');
@@ -169,7 +172,17 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
-    const max = getMaxQuantity(product);
+    if (stock !== null && stock <= 0) {
+      toast({
+        title: "Out of stock",
+        description: `${product.name} is currently out of stock.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const flatMax = getMaxQuantity(product);
+    const max = stock !== null ? Math.min(flatMax, stock) : flatMax;
     const existing = cartState.items.find(
       (i) => i.product.id === product.id && i.selectedColor === selectedColor && i.selectedStorage === selectedStorage
     );
@@ -261,11 +274,7 @@ const ProductDetail = () => {
                 {discount}% OFF
               </Badge>
             )}
-            {product.inStock && (
-              <Badge variant="secondary" className="absolute top-4 right-4 bg-success text-success-foreground">
-                In Stock
-              </Badge>
-            )}
+            <StockBadge stock={stock} loading={stockLoading} className="absolute top-4 right-4" />
           </div>
         </div>
 
@@ -352,13 +361,13 @@ const ProductDetail = () => {
           {/* Add to Cart */}
           <div className="space-y-4">
             <div className="flex gap-3">
-              <Button 
+              <Button
                 onClick={handleAddToCart}
-                className="flex-1 bg-gradient-primary hover:opacity-90" 
+                className="flex-1 bg-gradient-primary hover:opacity-90"
                 size="lg"
-                disabled={!product.inStock}
+                disabled={stockLoading || (stock !== null && stock <= 0)}
               >
-                {product.inStock ? 'Add to Cart' : 'Out of Stock'}
+                {stock !== null && stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
               </Button>
               <Button
                 variant="outline"

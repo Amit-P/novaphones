@@ -19,6 +19,8 @@
  * --------------------------------------------------------------------------
  */
 import PocketBase from 'pocketbase';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const PB_URL = process.env.PB_URL ?? 'http://127.0.0.1:8090';
 const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL;
@@ -65,6 +67,67 @@ async function ensureCollection(def) {
   return col;
 }
 
+// Adds a field to an already-existing collection if it isn't there yet.
+// Needed for schema changes to collections ensureCollection() would otherwise
+// skip entirely (e.g. adding `product_id` to a live `orders` collection that
+// already has real order data — never recreated, only extended).
+async function ensureField(collectionIdOrName, fieldDef) {
+  const col = await pb.collections.getOne(collectionIdOrName);
+  const fields = col.fields ?? col.schema ?? [];
+  if (fields.some((f) => f.name === fieldDef.name)) {
+    console.log(`= ${collectionIdOrName}.${fieldDef.name} already exists — skipping`);
+    return col;
+  }
+  fields.push(fieldDef);
+  const updatedCol = await pb.collections.update(col.id, { fields });
+  console.log(`+ added field ${fieldDef.name} to ${collectionIdOrName}`);
+  return updatedCol;
+}
+
+// Patches options (e.g. { required: false }) on an existing field of an
+// existing collection, only if they differ. Used to self-heal installs that
+// ran an earlier, since-corrected version of this script.
+async function ensureFieldOptions(collectionIdOrName, fieldName, patch) {
+  const col = await pb.collections.getOne(collectionIdOrName);
+  const fields = col.fields ?? col.schema ?? [];
+  const field = fields.find((f) => f.name === fieldName);
+  if (!field) return col; // field doesn't exist yet — ensureField() handles that case
+  const needsUpdate = Object.entries(patch).some(([k, v]) => field[k] !== v);
+  if (!needsUpdate) return col;
+  Object.assign(field, patch);
+  const updatedCol = await pb.collections.update(col.id, { fields });
+  console.log(`~ patched ${collectionIdOrName}.${fieldName}:`, patch);
+  return updatedCol;
+}
+
+// Parses the static catalog product ids straight out of src/data/products.ts
+// (kept as the single source of truth) rather than duplicating them by hand.
+function readCatalogProductIds() {
+  const productsPath = join(process.cwd(), 'src', 'data', 'products.ts');
+  const src = readFileSync(productsPath, 'utf8');
+  const ids = [...src.matchAll(/id:\s*'([^']+)'/g)].map((m) => m[1]);
+  return [...new Set(ids)];
+}
+
+// Creates a product_stock row (stock = MAX_STOCK) for every catalog product
+// that doesn't already have one. Safe to re-run — existing rows (and
+// whatever stock level they've been decremented/restocked to) are untouched.
+async function seedProductStock(maxStock) {
+  const ids = readCatalogProductIds();
+  let seeded = 0;
+  for (const id of ids) {
+    try {
+      await pb.collection('product_stock').getFirstListItem(
+        pb.filter('product_id = {:pid}', { pid: id })
+      );
+    } catch {
+      await pb.collection('product_stock').create({ product_id: id, stock: maxStock });
+      seeded++;
+    }
+  }
+  console.log(`product_stock: seeded ${seeded} new row(s), ${ids.length - seeded} already existed (${ids.length} catalog products total)`);
+}
+
 // --- main -----------------------------------------------------------------
 async function main() {
   // PocketBase v0.23+ superuser auth (was pb.admins.* before).
@@ -98,6 +161,9 @@ async function main() {
       text('delivery_address', true), text('delivery_city', true), text('delivery_state', true),
       text('delivery_pincode', true), text('payment_method', true), text('status', true),
       date('order_date'), relation('user', usersId, { required: false }),
+      // Static catalog product id (e.g. '1'), used by pb_hooks/main.pb.js to
+      // validate/decrement stock. Optional: absent on legacy/migrated orders.
+      text('product_id'),
       created('created'), updated(),
     ],
     indexes: ['CREATE UNIQUE INDEX idx_orders_order_number ON orders (order_number)'],
@@ -108,6 +174,9 @@ async function main() {
     updateRule: null,
     deleteRule: null,
   });
+  // Covers the case where `orders` already existed (pre-dating this field)
+  // and ensureCollection() above skipped it without adding product_id.
+  await ensureField(orders.id, text('product_id'));
 
   // 3) order_tracking_steps (created by the pb_hooks hook, in admin context)
   await ensureCollection({
@@ -190,6 +259,34 @@ async function main() {
     listRule: ownsViaUser, viewRule: ownsViaUser,
     createRule: authedOwner, updateRule: ownsViaUser, deleteRule: ownsViaUser,
   });
+
+  // 9) product_stock — live stock levels for the static catalog. Public read
+  //    (so anonymous visitors see stock badges); writes are locked down to
+  //    the pb_hooks server-side hook only (no client can create/update/delete).
+  const MAX_STOCK = 5;
+  await ensureCollection({
+    name: 'product_stock',
+    type: 'base',
+    fields: [
+      text('product_id', true),
+      // NOT required: PocketBase treats 0 as "blank" for a required number
+      // field ("stock: cannot be blank" even when explicitly set to 0), which
+      // would wrongly reject the perfectly valid "out of stock" state. min/max
+      // already fully constrain the value; every write always sets one anyway.
+      number('stock', false, { min: 0, max: MAX_STOCK }),
+      created('created'), updated(),
+    ],
+    indexes: ['CREATE UNIQUE INDEX idx_product_stock_product_id ON product_stock (product_id)'],
+    listRule: '', // empty string = public read
+    viewRule: '',
+    createRule: null,
+    updateRule: null,
+    deleteRule: null,
+  });
+  // Self-heal installs that ran an earlier version of this script where
+  // `stock` was (wrongly) required.
+  await ensureFieldOptions('product_stock', 'stock', { required: false });
+  await seedProductStock(MAX_STOCK);
 
   console.log('\nDone. Verify collections + rules in the PocketBase Admin UI.');
 }

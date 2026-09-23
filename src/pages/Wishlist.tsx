@@ -1,34 +1,91 @@
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useWishlist, type Product as WishlistProduct } from '@/contexts/WishlistContext';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, getMaxQuantity } from '@/contexts/CartContext';
+import { useProductStock } from '@/hooks/useProductStock';
+import { StockBadge } from '@/components/StockBadge';
 import type { Product as CatalogProduct } from '@/data/products';
 import { Link } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 
-const Wishlist = () => {
-  const { state: wishlistState, removeFromWishlist } = useWishlist();
-  const { dispatch } = useCart();
+// Own component (not inlined in the .map below) so it can call the
+// useProductStock hook per wishlist item — hooks can't be called inside a
+// loop/callback, only at the top level of a component.
+const WishlistItemActions = ({
+  product,
+  onMovedToCart,
+}: {
+  product: WishlistProduct;
+  onMovedToCart: (productId: string) => void;
+}) => {
+  const { state: cartState, dispatch } = useCart();
+  const { stock, loading } = useProductStock(product.id);
 
-  const handleAddToCart = (product: WishlistProduct) => {
+  const handleAddToCart = () => {
+    if (stock !== null && stock <= 0) {
+      toast({
+        title: "Out of stock",
+        description: `${product.name} is currently out of stock.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const flatMax = getMaxQuantity(product as unknown as CatalogProduct);
+    const max = stock !== null ? Math.min(flatMax, stock) : flatMax;
+    const color = product.colors?.[0] || 'Default';
+    const storage = product.storage?.[0] || '128GB';
+    const existing = cartState.items.find(
+      (i) => i.product.id === product.id && i.selectedColor === color && i.selectedStorage === storage
+    );
+    if (existing && existing.quantity >= max) {
+      toast({
+        title: "Purchase limit reached",
+        description: `Only ${max} of this item can be purchased right now.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     dispatch({
       type: 'ADD_ITEM',
       payload: {
         // Wishlist items are a partial catalog product; the cart reducer only
         // uses id/name/price, so this cast is safe at runtime.
         product: product as unknown as CatalogProduct,
-        color: product.colors?.[0] || 'Default',
-        storage: product.storage?.[0] || '128GB',
+        color,
+        storage,
       },
     });
-    removeFromWishlist(product.id);
+    onMovedToCart(product.id);
     toast({
       title: "Added to cart",
       description: `${product.name} has been moved to your cart.`,
     });
   };
+
+  const outOfStock = stock !== null && stock <= 0;
+
+  return (
+    <>
+      <StockBadge stock={stock} loading={loading} />
+      <div className="flex gap-2 pt-2">
+        <Button
+          onClick={handleAddToCart}
+          disabled={loading || outOfStock}
+          className="flex-1 bg-gradient-primary"
+        >
+          <ShoppingCart className="h-4 w-4 mr-2" />
+          Add to Cart
+        </Button>
+      </div>
+    </>
+  );
+};
+
+const Wishlist = () => {
+  const { state: wishlistState, removeFromWishlist } = useWishlist();
 
   const handleRemoveFromWishlist = (product: WishlistProduct) => {
     removeFromWishlist(product.id);
@@ -120,26 +177,7 @@ const Wishlist = () => {
                     )}
                   </div>
 
-                  {product.inStock ? (
-                    <Badge variant="outline" className="text-green-600 border-green-600">
-                      In Stock
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-red-600 border-red-600">
-                      Out of Stock
-                    </Badge>
-                  )}
-
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      onClick={() => handleAddToCart(product)}
-                      disabled={!product.inStock}
-                      className="flex-1 bg-gradient-primary"
-                    >
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Add to Cart
-                    </Button>
-                  </div>
+                  <WishlistItemActions product={product} onMovedToCart={removeFromWishlist} />
                 </div>
               </CardContent>
             </Card>

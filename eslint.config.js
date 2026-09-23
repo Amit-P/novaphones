@@ -5,7 +5,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  // pb_data is PocketBase's own generated runtime data (SQLite db, logs, and
+  // a types.d.ts it writes for hook authoring) — not application source.
+  { ignores: ["dist", "pb_data"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

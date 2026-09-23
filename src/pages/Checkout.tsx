@@ -115,6 +115,40 @@ const Checkout = () => {
       }
     }
 
+    // Pre-check live stock before creating any orders. Stock is tracked per
+    // product id, not per colour/storage variant, so quantities for the same
+    // product across different cart lines are summed and checked together.
+    // This is a courtesy check — the pb_hooks server-side hook is the real
+    // gate (see below) — but doing it here means a shortfall is caught
+    // up-front instead of after some order lines have already been created.
+    const requestedByProduct = new Map<string, number>();
+    for (const item of state.items) {
+      requestedByProduct.set(item.product.id, (requestedByProduct.get(item.product.id) ?? 0) + item.quantity);
+    }
+    for (const [productId, requestedQty] of requestedByProduct) {
+      let available = 0;
+      try {
+        const stockRec = await pb.collection('product_stock').getFirstListItem(
+          pb.filter('product_id = {:pid}', { pid: productId })
+        );
+        available = stockRec.stock as number;
+      } catch {
+        available = 0;
+      }
+      if (requestedQty > available) {
+        const productName = state.items.find((i) => i.product.id === productId)?.product.name ?? 'This item';
+        toast({
+          title: 'Not enough stock',
+          description:
+            available > 0
+              ? `${productName}: only ${available} left in stock (you have ${requestedQty} in your cart).`
+              : `${productName} is currently out of stock.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -160,6 +194,7 @@ const Checkout = () => {
         await pb.collection('orders').create({
           user: user?.id ?? '',
           order_number: uniqueOrderNumber,
+          product_id: item.product.id,
           product_name: `${item.product.name} - ${item.selectedColor}`,
           product_color: item.selectedColor,
           product_storage: item.selectedStorage,
@@ -185,9 +220,15 @@ const Checkout = () => {
       navigate('/order-success', { state: { paymentMethod: formData.paymentMethod } });
     } catch (error) {
       console.error('Error placing order:', error);
+      // The pb_hooks server-side hook rejects with a specific message (e.g.
+      // "Only 2 left in stock...") if stock ran out between our pre-check
+      // above and this request — most likely a race with another buyer.
+      // Note: if the cart has multiple lines, earlier lines in this loop may
+      // have already been created as real orders before this one failed.
+      const stockError = (error as { message?: string })?.message;
       toast({
         title: "Error placing order",
-        description: "Something went wrong. Please try again.",
+        description: stockError || "Something went wrong. Please try again.",
         variant: "destructive"
       });
     } finally {
